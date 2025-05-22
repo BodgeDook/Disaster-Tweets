@@ -1,10 +1,12 @@
 import argparse
 import time
-from transformers import (AutoModelForSequenceClassification,
+from transformers import (AutoModelForSequenceClassification, AutoTokenizer,
                           Trainer, TrainingArguments)
-from utils import (create_output_dir, compute_metrics, plot_metrics, save_json)
-from tokenizer import (tokenize)
+from utils import (create_output_dir, get_metrics, plot_metrics, save_json)
+from tokenizer import (tokenize, collate_fn)
 import torch
+from torch import nn
+from functools import partial
 
 def main():
     parser = argparse.ArgumentParser()
@@ -24,9 +26,14 @@ def main():
     out_dir = create_output_dir(args.output_base, args.exp_name)
 
     model = AutoModelForSequenceClassification.from_pretrained(
-        args.model_name, num_labels=2)
+        args.model_name,
+        num_labels=2,
+        ignore_mismatched_sizes=True
+    )
 
-    train_ds = tokenize(args.train_csv)
+    train_ds = tokenize(args.train_csv, val=False)
+
+    train_collate = partial(collate_fn, val=False)
 
     training_args = TrainingArguments(
         output_dir=f"{out_dir}/model",
@@ -35,9 +42,8 @@ def main():
         learning_rate=args.lr,
         weight_decay=0.01,
         logging_strategy="epoch",
-        evaluation_strategy="epoch",
         save_strategy="epoch",
-        load_best_model_at_end=True,
+        load_best_model_at_end=False,
         metric_for_best_model="f1"
     )
 
@@ -45,25 +51,25 @@ def main():
         model=model,
         args=training_args,
         train_dataset=train_ds,
-        compute_metrics=compute_metrics
+        data_collator=train_collate,
+        compute_metrics=get_metrics
     )
 
     train_result = trainer.train()
-    metrics_train = train_result.metrics
-    save_json(metrics_train, f"{out_dir}/metrics_train.json")
+    save_json(train_result.metrics, f"{out_dir}/metrics_train.json")
 
     trainer.save_model(f"{out_dir}/model")
 
-    hist = {"epoch": [], "train_loss": [], "eval_f1": []}
-    for log in trainer.state.log_history:
-        if "epoch" in log:
-            if "loss" in log:
-                hist["epoch"].append(log["epoch"])
-                hist["train_loss"].append(log["loss"])
-            if "eval_f1" in log:
-                hist.setdefault("eval_f1", []).append(log["eval_f1"])
+    # hist = {"epoch": [], "train_loss": [], "eval_f1": []}
+    # for log in trainer.state.log_history:
+    #     if "epoch" in log:
+    #         if "loss" in log:
+    #             hist["epoch"].append(log["epoch"])
+    #             hist["train_loss"].append(log["loss"])
+    #         if "eval_f1" in log:
+    #             hist.setdefault("eval_f1", []).append(log["eval_f1"])
 
-    plot_metrics(hist, f"{out_dir}/plot_train.png", "Training Loss & F1")
+    # plot_metrics(hist, f"{out_dir}/plot_train.png", "Training Loss & F1")
 
     print(f"Training has finished. Check the results here: {out_dir}")
 

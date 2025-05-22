@@ -25,7 +25,7 @@ def clean_text(text):
 
     return text
 
-def tokenize(dataset_path):
+def tokenize(dataset_path, val=False):
     df = pd.read_csv(dataset_path)
     df["text"] = df["text"].apply(clean_text)
 
@@ -39,21 +39,50 @@ def tokenize(dataset_path):
         return_tensors="pt"
     )
 
-    labels = torch.tensor(df["target"].tolist())
+    tensor_dataset = None
 
-    dataset = {
-        "input_ids": encodings["input_ids"],
-        "attention_mask": encodings["attention_mask"],
-        "labels": labels
-    }
+    if not val:
+        labels = torch.tensor(df["target"].tolist())
 
-    for k, v in dataset.items():
-        print(f"Dataset tokenization info:\n{k}: {v.shape}")
+        dataset = {
+            "input_ids": encodings["input_ids"],
+            "attention_mask": encodings["attention_mask"],
+            "labels": labels
+        }
 
-    tensor_dataset = TensorDataset(
-        encodings["input_ids"],
-        encodings["attention_mask"],
-        labels
-    )
+        for k, v in dataset.items():
+            print(f"Dataset tokenization info:\n{k}: {v.shape}")
+
+        tensor_dataset = TensorDataset(
+            encodings["input_ids"],
+            encodings["attention_mask"],
+            labels
+        )
+    else:
+        dataset = {
+            "input_ids": encodings["input_ids"],
+            "attention_mask": encodings["attention_mask"],
+        }
+
+        for k, v in dataset.items():
+            print(f"Dataset tokenization info:\n{k}: {v.shape}")
+
+        tensor_dataset = TensorDataset(
+            encodings["input_ids"],
+            encodings["attention_mask"],
+        )
 
     return tensor_dataset
+
+def collate_fn(batch, val=False):
+    input_ids  = torch.stack([b[0] for b in batch])
+    masks      = torch.stack([b[1] for b in batch])
+
+    if not val:
+        labels = torch.tensor([b[2] for b in batch])
+        return {"input_ids": input_ids,
+                "attention_mask": masks,
+                "labels": labels}
+    
+    return {"input_ids": input_ids,
+            "attention_mask": masks}

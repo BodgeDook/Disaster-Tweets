@@ -12,7 +12,7 @@ def create_output_dir(base: str, name: str):
     os.makedirs(os.path.join(path, "model"), exist_ok=True)
     return path
 
-def compute_metrics(pred):
+def get_metrics(pred):
     preds = pred.predictions.argmax(-1)
     labels = pred.label_ids
     acc = accuracy_score(labels, preds)
@@ -21,13 +21,20 @@ def compute_metrics(pred):
 
 def plot_metrics(history: dict, output_path: str, title: str):
     """
-    history: словарь вида {"epoch": [...], "train_loss": [...], "eval_f1": [...]}
+    history: словарь вида {"epoch": [...], "train_loss": [...], "eval_f1": [...]} или без "eval_f1"
     """
-    epochs = history["epoch"]
+    epochs = history.get("epoch", [])
     plt.figure()
-    plt.plot(epochs, history["train_loss"], label="Train Loss")
-    if "eval_f1" in history:
-        plt.plot(epochs, history["eval_f1"], label="Eval F1")
+    if "train_loss" in history and history["train_loss"]:
+        plt.plot(epochs, history["train_loss"], label="Train Loss")
+
+    eval_f1 = history.get("eval_f1", [])
+    if eval_f1:
+        if len(eval_f1) == len(epochs):
+            plt.plot(epochs, eval_f1, label="Eval F1")
+        else:
+            plt.plot(list(range(1, len(eval_f1) + 1)), eval_f1, label="Eval F1")
+
     plt.xlabel("Epoch")
     plt.ylabel("Value")
     plt.title(title)

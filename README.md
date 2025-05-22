@@ -48,9 +48,9 @@ Just make sure the requirements is satisfied:
 To run the training:
 ```
   # Arguments and their default values:
-  # --exp-name - run_%Y%m%d_%H%M%S
+  # --exp_name - run_%Y%m%d_%H%M%S
   # --train_csv - data/train_modified.csv
-  # --model-name - bhadresh-savani/distilbert-base-uncased-emotion
+  # --model_name - bhadresh-savani/distilbert-base-uncased-emotion
   # --lr - 5e-5
   # --epochs - 3
   # --batch_size - 16
@@ -63,7 +63,7 @@ To run the validation:
 ```
   # Arguments and their default values:
   # (Required) --exp_dir - no default value
-  # --train_csv - data/train_modified.csv
+  # --test_csv - data/test_modified.csv
 
   python3 validate.py --exp_dir EXPERIMENT_FOLDER_NAME
 ```
