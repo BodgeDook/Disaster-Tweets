@@ -2,7 +2,7 @@ import argparse
 import pandas as pd
 import torch
 from transformers import AutoModelForSequenceClassification, Trainer
-from utils import get_metrics, plot_metrics, save_json
+from utils import get_metrics, plot_metrics, save_json, to_submission_format
 from tokenizer import tokenize, collate_fn
 from functools import partial
 
@@ -42,6 +42,8 @@ def main():
     df["pred_label"] = preds
     df["pred_prob"] = probs
     df.to_csv(f"{args.exp_dir}/predictions.csv", index=False)
+
+    to_submission_format(f"{args.exp_dir}/predictions.csv", f"{args.exp_dir}/predict_submissions.csv")
 
     # hist = {"epoch": [1], "eval_f1": [eval_result.get("eval_f1", 0.0)]}
     # plot_metrics(hist, f"{args.exp_dir}/plot_val.png", "Validation F1")

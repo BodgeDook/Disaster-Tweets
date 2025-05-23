@@ -44,7 +44,9 @@ def main():
         logging_strategy="epoch",
         save_strategy="epoch",
         load_best_model_at_end=False,
-        metric_for_best_model="f1"
+        metric_for_best_model="f1",
+        optim="adamw_torch",
+        lr_scheduler_type="cosine_with_restarts"
     )
 
     trainer = Trainer(
@@ -52,7 +54,7 @@ def main():
         args=training_args,
         train_dataset=train_ds,
         data_collator=train_collate,
-        compute_metrics=get_metrics
+        compute_metrics=get_metrics,
     )
 
     train_result = trainer.train()
