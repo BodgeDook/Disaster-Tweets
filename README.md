@@ -64,6 +64,7 @@ To run the validation:
   # Arguments and their default values:
   # (Required) --exp_dir - no default value
   # --test_csv - data/test_modified.csv
+  # --output_base - outputs
 
   python3 validate.py --exp_dir EXPERIMENT_FOLDER_NAME
 ```

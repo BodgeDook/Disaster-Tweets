@@ -10,6 +10,7 @@ def create_output_dir(base: str, name: str):
     path = os.path.join(base, name)
     os.makedirs(path, exist_ok=True)
     os.makedirs(os.path.join(path, "model"), exist_ok=True)
+    os.makedirs(os.path.join(path, "predictions"), exist_ok=True)
     return path
 
 def save_json(d: dict, path: str):
@@ -20,13 +21,13 @@ def to_submission_format(input_file, output_file):
     df = pd.read_csv(input_file)
     
     num_rows = len(df)
-    print(f"Число строк в таблице: {num_rows}")
+    print(f"The number of predicted values: {num_rows}")
     
     df = df.drop(['text', 'pred_prob'], axis=1)
     
     df = df.rename(columns={'pred_label': 'target'})
     
     df.to_csv(output_file, index=False)
-    print(f"Обработанная таблица сохранена в файл: {output_file}")
+    print(f"Check your predictions here: {output_file}")
 
 

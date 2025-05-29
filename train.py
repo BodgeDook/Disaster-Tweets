@@ -10,29 +10,6 @@ from functools import partial
 from sklearn.metrics import confusion_matrix, accuracy_score, precision_score, recall_score, f1_score
 import matplotlib.pyplot as plt
 
-def get_train_metrics(train_csv, exp_dir):
-    df_true = pd.read_csv(train_csv)["target"].tolist()
-    log_path = os.path.join(exp_dir, "log_history.csv")
-    df_logs = pd.read_csv(log_path)
-    plt.figure()
-    plt.plot(df_logs["epoch"], df_logs["loss"])
-    plt.savefig(os.path.join(exp_dir, "train_loss.png"))
-    metrics = {"epoch": [], "accuracy": [], "precision": [], "recall": [], "f1": []}
-    for epoch in df_logs["epoch"].unique():
-        preds_path = os.path.join(exp_dir, f"predictions_epoch_{int(epoch)}.csv")
-        df_pred = pd.read_csv(preds_path)
-        preds = df_pred["pred_label"].tolist()
-        metrics["epoch"].append(epoch)
-        metrics["accuracy"].append(accuracy_score(df_true, preds))
-        metrics["precision"].append(precision_score(df_true, preds))
-        metrics["recall"].append(recall_score(df_true, preds))
-        metrics["f1"].append(f1_score(df_true, preds))
-    for name in ["accuracy", "precision", "recall", "f1"]:
-        plt.figure()
-        plt.plot(metrics["epoch"], metrics[name])
-        plt.savefig(os.path.join(exp_dir, f"{name}.png"))
-    save_json(metrics, os.path.join(exp_dir, "train_metrics.json"))
-
 class PredictCallback(TrainerCallback):
     def __init__(self, train_csv, train_ds, exp_dir):
         self.train_csv = train_csv
@@ -42,8 +19,8 @@ class PredictCallback(TrainerCallback):
 
     def on_log(self, args, state, control, logs=None, **kwargs):
         if logs and "loss" in logs:
-            with open(os.path.join(self.exp_dir, "log_history.csv"), "a") as f:
-                f.write(f"{state.epoch},{logs['loss']}\n")
+            with open(os.path.join(self.exp_dir, "callback_loss_report.csv"), "a") as f:
+                f.write(f"{state.epoch},{logs["loss"]}\n")
         return control
 
     def on_epoch_end(self, args, state, control, **kwargs):
@@ -51,9 +28,49 @@ class PredictCallback(TrainerCallback):
         preds = output.predictions.argmax(-1)
         df = pd.read_csv(self.train_csv)
         df["pred_label"] = preds
-        df.to_csv(os.path.join(self.exp_dir, f"predictions_epoch_{int(state.epoch)}.csv"), index=False)
+        df.to_csv(
+            os.path.join(f"{self.exp_dir}/predictions",
+                         f"predictions_epoch_{int(state.epoch)}.csv"),
+            index=False
+        )
         return control
 
+def get_train_metrics(train_csv, exp_dir):
+    df_true = pd.read_csv(train_csv)["target"].tolist()
+    log_path = os.path.join(exp_dir, "callback_loss_report.csv")
+    df_logs = pd.read_csv(log_path)
+    loss_list = df_logs["loss"].tolist()
+    
+    metrics = {
+        "epoch": [],
+        "loss": loss_list,
+        "accuracy": [],
+        "precision": [],
+        "recall": [],
+        "f1": []
+    }
+    for epoch in df_logs["epoch"].unique():
+        preds_path = os.path.join(exp_dir,
+                                    f"predictions",
+                                    f"predictions_epoch_{int(epoch)}.csv")
+        df_pred = pd.read_csv(preds_path)
+        preds = df_pred["pred_label"].tolist()
+        metrics["epoch"].append(epoch)
+        metrics["accuracy"].append(accuracy_score(df_true, preds))
+        metrics["precision"].append(precision_score(df_true, preds))
+        metrics["recall"].append(recall_score(df_true, preds))
+        metrics["f1"].append(f1_score(df_true, preds))
+        
+    for name in ["accuracy", "loss", "precision", "recall", "f1"]:
+        cap_name = name.capitalize()
+        plt.figure()    
+        plt.plot(metrics["epoch"], metrics[name])
+        plt.title(f"Train {cap_name}")
+        plt.xlabel("Epochs")
+        plt.ylabel(cap_name)
+        plt.savefig(os.path.join(exp_dir, f"{name}.png"))
+        
+    save_json(metrics, os.path.join(exp_dir, "train_metrics.json"))
 
 def main():
     parser = argparse.ArgumentParser()
@@ -95,14 +112,14 @@ def main():
         compute_metrics=None,
         callbacks=[predict_cb]
     )
-    # Подготовка лог-файла
-    with open(os.path.join(out_dir, "log_history.csv"), "w") as f:
+
+    with open(os.path.join(out_dir, "callback_loss_report.csv"), "w") as f:
         f.write("epoch,loss\n")
-    # Связывание trainer для колбэка
+
     predict_cb.trainer = trainer
 
     train_result = trainer.train()
-    save_json(train_result.metrics, os.path.join(out_dir, "metrics_train.json"))
+    save_json(train_result, os.path.join(out_dir, "processing_report.json"))
     trainer.save_model(os.path.join(out_dir, "model"))
     get_train_metrics(args.train_csv, out_dir)
     print(f"Training has finished. Check the results here: {out_dir}")
